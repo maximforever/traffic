@@ -21,14 +21,14 @@ function init(){
 // test car:
 
     var c1 = new Car(2, 1);
-
     var c2 = new Car(1.5, 2);
-
     var c3 = new Car(1, 3);
-
     var c4 = new Car(2, 3);
+    var c5 = new Car(3, 1);
+    var c6 = new Car(.5, 2);
 
-    cars.push(c1, c2, c3, c4);
+
+    cars.push(c1, c2, c3, c4, c5, c6);
     console.log(cars);
 
 
@@ -63,16 +63,58 @@ function draw(){
 
         accident(car);              // check if this car is colliding with anyone (by cycling through every other car - wildly inefficient)
 
+        if(!car.collided){
+            lookAhead(car);
+        }
+        
         if(car.collided){
             color = "red";
         }
 
+
+
+
+
         rect(car.x, car.y, car.width, car.height, color);
-        car.y -= car.speed;
+
+        car.y -= (car.speed + randBetween(-0.2, 0.2));                      // later, we'll need to control for this based on the skill setting 
+                                                                            // that is - can this driver hold speed?
+        // if we're off the top of the canvas, reposition to bottom of canvas
 
         if((car.y+car.height) < 0){
             car.y = HEIGHT;
         }
+    });
+
+}
+
+function lookAhead(car){
+
+    cars.forEach(function(otherCar){
+
+            var futureCollisionX = false;
+            var futureCollisionY = false;
+
+            if(otherCar.x >= car.x && otherCar.x <= (car.x+car.width)){
+                futureCollisionX = true;
+
+            }
+
+            if((otherCar.x + otherCar.width) >= car.x && (otherCar.x + otherCar.width) <= (car.x+car.width)){
+                futureCollisionX = true;
+            }
+
+            if((car.y - (car.height * car.skill * 2)) <= (otherCar.y + otherCar.height) && (car.y - (car.height * car.skill * 2)) >= otherCar.y) {
+                futureCollisionY = true;
+            }
+
+            if(futureCollisionX && futureCollisionY){
+                car.speed -= (car.speed/5);
+                console.log("slowing down");
+            } else if(car.speed < 1){
+                car.speed += (car.speed/10)
+            }
+
     });
 
 }
@@ -90,22 +132,18 @@ function accident(car){
 
             if(otherCar.x >= car.x && otherCar.x <= (car.x+car.width)){
                 xCollision = true;
-                console.log("xcol");
             }
 
             if((otherCar.x + otherCar.width) >= car.x && (otherCar.x + otherCar.width) <= (car.x+car.width)){
                 xCollision = true;
-                console.log("xcol");
             }
 
             if(otherCar.y >= car.y && otherCar.y <= (car.y+car.height)){
                 yCollision = true;
-                console.log("ycol");
             }
 
             if((otherCar.y+otherCar.height) >= car.y && (otherCar.y+otherCar.height) <= (car.y+car.height)){
                 yCollision = true;
-                console.log("ycol");
             }
 
             if(xCollision && yCollision){
@@ -170,3 +208,7 @@ function Car(speed, lane){
 function clear() {
     ctx.clearRect(0, 0, WIDTH, HEIGHT);                 // creates a rectangle the size of the entire canvas that clears the area
 }
+
+function randBetween(min, max){
+        return Math.random() * (max - min) + min;
+    }
