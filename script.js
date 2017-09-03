@@ -77,8 +77,7 @@ function draw(){
 
         rect(car.x, car.y, car.width, car.height, color);
 
-        car.y -= (car.speed + randBetween(-0.2, 0.2));                      // later, we'll need to control for this based on the skill setting 
-                                                                            // that is - can this driver hold speed?
+        car.y -= (car.speed);
         // if we're off the top of the canvas, reposition to bottom of canvas
 
         if((car.y+car.height) < 0){
@@ -113,6 +112,9 @@ function lookAhead(car){
                 console.log("slowing down");
             } else if(car.speed < 1){
                 car.speed += (car.speed/10)
+            } else {
+                car.speed += randBetween(-0.05, 0.05);                      // later, we'll need to control for this based on the skill setting 
+                                                                            // that is - can this driver hold speed?
             }
 
     });
@@ -190,6 +192,10 @@ function Car(speed, lane){
     this.width = 30;
 
     this.speed = speed;
+    this.desiredSpeed = speed;
+
+    this.lane = lane;
+    this.nextLane = lane;
 
     if(lane != 1 && lane != 2 && lane != 3){
         lane = 3;
