@@ -33,6 +33,8 @@ function init(){
 
 function draw(){
 
+
+
 /* 
     1. draw the highway
     2. draw the lanes
@@ -95,9 +97,10 @@ function draw(){
 
         if(car.collided){
             car.speed = 0;
-        } else if(car.lookAhead()){
-            console.log(car.lookAhead()); 
-            car.speed -= (car.speed/3);
+        } else if(car.slowingDown){ 
+            car.speed -= (car.speed/2);
+        } else if(!car.collided && car.speed < 0.5){
+            car.speed += 0.5;
         } else if(car.speed <= (0.95 * car.desiredSpeed)){
             car.speed *= 1.05;
         } else {
@@ -116,13 +119,11 @@ function draw(){
 
         // if we're off the top of the canvas, reposition to bottom of canvas
 
-        if((car.y+car.height) < 0){
-            car.y = HEIGHT;
+       
+        if((car.y + car.height) <= 0){
+            car.y = (HEIGHT-car.height);
         }
 
-        if((car.y) > HEIGHT){
-            car.y = 0;
-        }
 
 
     });
@@ -229,17 +230,28 @@ function Car(skill, speed, lane){
                     futureCollisionX = true;
                 }
 
-                var verticalDistance;
+                var safeDistance;
 
                 if((self.y - self.height*self.skill*2) <= 0){
-                    verticalDistance = HEIGHT-(self.height*self.skill*2 - self.y);
+                    safeDistance = HEIGHT+(self.y - self.height*self.skill*2);
                 } else {
-                    verticalDistance = (self.y - self.height*self.skill*2);
+                    safeDistance = (self.y - self.height*self.skill*2);
                 }
 
-                if(verticalDistance  <= (otherCar.y + otherCar.height) && verticalDistance >= otherCar.y){
-                    futureCollisionY = true;
+                if(otherCar.y <= 0){                                 // edge case when the car is... literally on the edge of the map
+                    console.log("danger zone!" + otherCar.y);
+                    safeDistance = (self.y - self.height*self.skill*2); 
+                    if(safeDistance >= otherCar.y && safeDistance <= (otherCar.y+otherCar.height)){
+                          
+                        futureCollisionY = true;
+                    }
+                } else {
+                    if(safeDistance <= (otherCar.y + otherCar.height) && safeDistance >= otherCar.y){    
+                        futureCollisionY = true;
+                    }
                 }
+    
+
 
                 if(futureCollisionX && futureCollisionY && self.speed > 0){
                     slowingDown = true;
