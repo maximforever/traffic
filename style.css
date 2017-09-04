@@ -1,14 +1,23 @@
 #canvas {
-    height:500px;
-    width: 220px;
+
     border: 1px solid black;
+}
+
+#car-info{
+    display: inline-block;
+    margin: 10px;
+    vertical-align: top;
+}
+
+#car-info h2{
+    margin: 0;
 }
 
 @media handheld, screen and (max-width: 550px) {
 
     #canvas {
-        height: 400px;
-        width: 350px;
+        height: 390px;
+        width: 200px;
     }
 
 }
