@@ -8,21 +8,41 @@ var WIDTH = canvas.width;
 var HEIGHT = canvas.height;
 console.log("Canvas dimensions: " + HEIGHT + ", " + WIDTH);
 
-var numLanes = 5;
-var numberOfCars = 10;
+var numLanes = 4;
+var numberOfCars = 12;
+
+var maxFrustration = 90;                            // frustration dictates merges
 
 var laneWidth = (WIDTH-20)/numLanes;
 var borderWidth = 10;
 
+var carCounter = 0;                                 // keep track of how many cars we have
 
-var carCounter = 0;
+additionalInfo = false;                                     // show collision info
 
- init();
+init();
 
 function init(){
     ctx = canvas.getContext("2d");
     setInterval(draw, 20);
 }
+
+if($('#additional').is(":checked")){
+        console.log("checked!")
+        additionalInfo = true;
+}
+
+$('#additional').change(function(){
+    if($('#additional').is(":checked")){
+        console.log("checked!")
+        additionalInfo = true;
+    } else {
+        additionalInfo = false;
+    }
+});
+
+
+
 
 // test car:
 
@@ -51,17 +71,12 @@ function draw(){
 
     /* draw the track */
 
-    updateView();
 
     rect(0, 0, borderWidth, HEIGHT, "black");
-
 
     for(var i = 0; i < numLanes; i ++){
         rect((borderWidth+laneWidth*i), 0, laneWidth, HEIGHT, "gray");
     }
-
-
-
 
     rect((borderWidth+(laneWidth*numLanes)), 0, borderWidth, HEIGHT, "black");
 
@@ -77,15 +92,15 @@ function draw(){
         var lightColor = "white";
 
         /* check for collision against every other car */
-        if(car.checkForCollision()){
+        if(!car.collided && car.checkForCollision()){
             car.collided = true;
-        } else {
-            car.collided = false;
         }
 
         if(car.lookAhead()){
             car.slowingDown = true;
-            car.frustration++;
+            if(car.frustration < maxFrustration){
+                car.frustration++;
+            }
         } else {
             car.slowingDown = false;
         }
@@ -104,6 +119,17 @@ function draw(){
         
         text(car.id, (car.x+car.width/2) , car.y + 15);
 
+
+        /* Draw a frustration bar */
+        if(car.frustration <= (maxFrustration/3)){
+            rect(car.x, car.y, car.width*(car.frustration/(maxFrustration/3)), car.height/15, "#d61515");
+        } else {
+            rect(car.x, car.y, car.width*(car.frustration/maxFrustration), car.height/15, "#14ccd6");
+        }
+
+
+
+
                       // check if this car is colliding with anyone (by cycling through every other car - wildly inefficient)
         
 
@@ -115,9 +141,9 @@ function draw(){
         if(car.collided){
             car.speed = 0;
         } else if(car.slowingDown){ 
-            car.speed -= (car.speed/2);
-        } else if(!car.collided && car.speed < 0.5){
-            car.speed += 0.5;
+            car.speed *= 0.5;
+        } else if(car.speed < 0.5){ 
+            car.speed += 0.25;
         } else if(car.speed <= (0.95 * car.desiredSpeed)){
             car.speed *= 1.05;
         } else {
@@ -128,11 +154,14 @@ function draw(){
 
         
         // to merge, the car should not be colliding, should be safe to merge,  should not be in the leftmost lane, and should not already be merging
-        if(!car.collided && car.safeToMerge() && car.lane > 1 && (car.lane == car.desiredLane)){
-            if(car.frustration > 30*car.skill){         // less skilled car should merge more often;
+        if(!car.collided && car.lane == car.desiredLane && car.safeToMerge() && car.frustration >= maxFrustration*car.skill  ){ // if we're in the leftmost lane, but really pissed, pass on the right
+            car.desiredLane++;
+            console.log("Car " + car.id + " is passing on the right ");
+        } else if(!car.collided && car.lane == car.desiredLane && car.safeToMerge() && car.lane > 1 ){
+            if(car.frustration > (maxFrustration/3)*car.skill){         // less skilled car should merge more often;
                 car.desiredLane--;                  // decrease lane by 1 => move left
-            }
-            
+                console.log("Car " + car.id + " is passing on the left ");
+            } 
         }
 
         if(car.speed > 3){
@@ -150,8 +179,11 @@ function draw(){
         if(car.y <= 0){                 // this creates a dummy car visual
             var tempY = HEIGHT + car.y;
             rect(car.x, tempY, car.width, car.height, carColor);
-            circle((car.x + 5 ), (tempY + car.height - 6), 3, lightColor);
-            circle((car.x + car.width - 5 ), (tempY + car.height - 6), 3, lightColor);
+
+            circle((car.x + 0.25*car.width ), (tempY + 0.8*car.height), laneWidth/22, lightColor);
+            circle((car.x + 0.75*car.width), (tempY + 0.8*car.height), laneWidth/22, lightColor);
+
+
             text(car.id, (car.x+car.width/2) , tempY + 15);
         }
 
@@ -160,13 +192,22 @@ function draw(){
 
         car.y -= (car.speed);                             // this is the bit that makes the car move forward
 
-        if(car.desiredLane != car.lane && car.x > borderWidth){
+        if(car.desiredLane != car.lane && car.x > borderWidth && (car.x + car.width) < (WIDTH-borderWidth)){
+            car.safeToMerge();  
             car.x -= car.width/(20 *(1/car.skill))*(car.lane - car.desiredLane);            // merge based on skill (less skill - more abrupt merge);
-                                                                                              // move in the direction of the desired lane;
+            car.y -= car.height/50;                                                         // move in the direction of the desired lane;
+                                                                                            // a merging car should be moving forward at least a little;
 
-            if((car.x + car.width/2) <= (borderWidth + (car.desiredLane-1)*laneWidth + laneWidth/2)){
-                car.lane = car.desiredLane;
-                car.frustration = 0;                        // reset frustration;
+            if(car.desiredLane < car.lane){                                                                          // if we're meging left
+                if((car.x + car.width/2) <= (borderWidth + (car.desiredLane-1)*laneWidth + laneWidth/2)){
+                    car.lane = car.desiredLane;
+                    car.frustration = 0;                                                                            // reset frustration;
+                }
+            } else if(car.desiredLane > car.lane) {                      // if we're meging right
+                if((car.x + car.width/2) >= (borderWidth + (car.desiredLane-1)*laneWidth + laneWidth/2)){
+                    car.lane = car.desiredLane;
+                    car.frustration = 0;                        // reset frustration;
+                }        
             }
 
         }
@@ -236,45 +277,27 @@ function Car(skill, speed, lane){
 
         var self = this;
         var colliding = false;
-        cars.forEach(function(otherCar){
 
-            if(self.id != otherCar.id && self.lane == otherCar.lane){       // this is a problem, but I don't know why it doesn't work without the lane bit
-                var xCollision = false;
-                var yCollision = false;
+        tempX = this.x;
+        tempY = this.y
 
-                if(self.x >= otherCar.x && self.x <= (otherCar.x + otherCar.width)){
-                    xCollision = true;
-                    
-                }
+        if(tempY - this.height < 0){                                   // need to account for going off the top of the map
+            tempY = HEIGHT + (tempY);
+        }
 
-                if((self.x+self.width) >= otherCar.x  && (self.x+self.width) <= (otherCar.x + otherCar.width)){
-                    xCollision = true;
-                    
-                }
 
-                if(self.y >= otherCar.y && self.y <= (otherCar.y + otherCar.height)){
-                    yCollision = true;
-                    
-                }
-
-                if((self.y+self.height) >= otherCar.y && (self.y+self.height) <= (otherCar.y + otherCar.height)){
-                    yCollision = true;
-                    
-                }
-
-                if(xCollision && yCollision){
-                    self.collided = true;
-                    colliding = true;
-                    self.collided = true;
-                //    console.log("colliding " + self.id);
-                } else {
-                    self.collided = false;
-                    colliding = false;
-                //    console.log("not colliding " + self.id);
-                }
-            }
-
-        });
+        if(this.checkForSpecificCollision(tempX, tempY)){
+            colliding = true;
+        }  
+        if(this.checkForSpecificCollision(tempX + this.width, tempY)){
+            colliding = true;
+        }  
+        if(this.checkForSpecificCollision(tempX, tempY + this.height)){
+            colliding = true;
+        }  
+        if(this.checkForSpecificCollision(tempX + this.width, tempY + this.height)){
+            colliding = true;
+        }  
 
         return colliding;
 
@@ -302,52 +325,42 @@ function Car(skill, speed, lane){
 
     this.lookAhead = function(){                                    // looks a few cars ahead (based on skills) for collisions
 
-        self = this;
-        var slowingDown = false;
+        var futureCollision = false;
 
-        cars.forEach(function(otherCar){
+        var signalCircleRadius = laneWidth/30;
 
-                var futureCollisionX = false;
-                var futureCollisionY = false;
+        tempX = this.x;
+        tempY = this.y
 
-                if(otherCar.x >= self.x && otherCar.x <= (self.x+self.width)){
-                    futureCollisionX = true;
+        if(tempY - this.height < 0){                                   // need to account for going off the top of the map
+            tempY = HEIGHT + (tempY);
+        }
 
-                }
+        if(this.checkForSpecificCollision(tempX, (tempY-this.height)*skill)){
+            futureCollision = true;
+        }
+        // front right
+        if(this.checkForSpecificCollision(tempX+this.width, (tempY-this.height)*skill)){
+            futureCollision = true;
+        }
 
-                if((otherCar.x + otherCar.width) >= self.x && (otherCar.x + otherCar.width) <= (self.x+self.width)){
-                    futureCollisionX = true;
-                }
+        if(this.checkForSpecificCollision(tempX, (tempY-this.height*2)*skill)){
+            futureCollision = true;
+        }
+        // front right
+        if(this.checkForSpecificCollision(tempX+this.width, (tempY-this.height*2)*skill)){
+            futureCollision = true;
+        }
 
-                var safeDistance;
-
-                if((self.y - self.height*self.skill*2) <= 0){
-                    safeDistance = HEIGHT+(self.y - self.height*self.skill*2);
-                } else {
-                    safeDistance = (self.y - self.height*self.skill*2);
-                }
-
-                if(otherCar.y <= 0){                                 // edge case when the car is... literally on the edge of the map
-                    safeDistance = (self.y - self.height*self.skill*2); 
-                    if(safeDistance >= otherCar.y && safeDistance <= (otherCar.y+otherCar.height)){
-                          
-                        futureCollisionY = true;
-                    }
-                } else {
-                    if(safeDistance <= (otherCar.y + otherCar.height) && safeDistance >= otherCar.y){    
-                        futureCollisionY = true;
-                    }
-                }
-    
+        if(additionalInfo){
+            circle(tempX, (tempY-this.height)*skill, signalCircleRadius, "black");
+            circle((tempX+this.width), (tempY-this.height)*skill, signalCircleRadius, "black");
+            circle(tempX, (tempY-this.height*2)*skill, signalCircleRadius, "black");
+            circle((tempX+this.width), (tempY-this.height*2)*skill, signalCircleRadius, "black");
+        }
 
 
-                if(futureCollisionX && futureCollisionY && self.speed > 0){
-                    slowingDown = true;
-                }  
-
-        });
-
-        return slowingDown;
+        return futureCollision;
 
     }
 
@@ -362,26 +375,44 @@ function Car(skill, speed, lane){
             __  |    |
         */
         var safeToChangeLanes = true;
+        var left;
+        var right;
+
         
 
-        if(this.lane > 1){
+        if(this.lane > 1 || this.frustration >= maxFrustration){
 
-            var left = this.x - laneWidth;
-            var right = this.x - laneWidth + this.width;
+            if(this.frustration >= maxFrustration && lane < numLanes){                          // merge right 
+                left = this.x + laneWidth;
+                right = this.x + laneWidth + this.width;
+            } else {                                                                            // merge left
+                left = this.x - laneWidth;
+                right = this.x - laneWidth + this.width;
+            }
+            
 
             /* draw the testing circles */
-            console.log(this.frustration);
-            if(this.frustration > 30){
-                var signalCircleRadius = laneWidth/22;
-                circle(left, this.y, signalCircleRadius, "black");
-                circle(right, this.y, signalCircleRadius, "black");
-                circle(left, this.y+this.height, signalCircleRadius, "black");
-                circle(right, this.y+this.height, signalCircleRadius, "black");
-                circle(left, this.y-this.height, signalCircleRadius, "black");
-                circle(right, this.y-this.height, signalCircleRadius, "black");
-                circle(left, this.y+this.height*2, signalCircleRadius, "black");
-                circle(right, this.y+this.height*2, signalCircleRadius, "black");
+            if(additionalInfo){
+                if(this.frustration > (maxFrustration/3)){
+                    var signalCircleRadius = laneWidth/22;
+                    circle(left, this.y, signalCircleRadius, "black");
+                    circle(right, this.y, signalCircleRadius, "black");
+                    circle(left, this.y+this.height, signalCircleRadius, "black");
+                    circle(right, this.y+this.height, signalCircleRadius, "black");
+                    circle(left, this.y-this.height, signalCircleRadius, "black");
+                    circle(right, this.y-this.height, signalCircleRadius, "black");
+                    circle(left, this.y+this.height*2, signalCircleRadius, "black");
+                    circle(right, this.y+this.height*2, signalCircleRadius, "black");
+
+                    line(this.x, (this.y + (this.y + this.height))/2, right,  (this.y + (this.y + this.height))/2);
+
+                    line(left, this.y - this.height, left, this.y + this.height*2);
+                    line(right, this.y - this.height, right, this.y + this.height*2);
+                    line(left, this.y - this.height, right, this.y - this.height);
+                    line(left, this.y + this.height*2, right, this.y + this.height*2);
+                }
             }
+            
 
             // front left
             if(this.checkForSpecificCollision(left, this.y)){
@@ -418,8 +449,6 @@ function Car(skill, speed, lane){
             if(this.checkForSpecificCollision(right, this.y+this.height*2)){
                 safeToChangeLanes = false;
             } 
-        } else {
-            safeToChangeLanes = false;
         }
 
         return safeToChangeLanes;
@@ -462,6 +491,13 @@ function text(text, x, y){
     ctx.textAlign = "center";
     ctx.fillText(text, x, y);
 }
+
+function line(x1, y1, x2, y2){
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+}
  
 
  
@@ -474,17 +510,6 @@ function randBetween(min, max){
 }
 
 
-/* update view:*/
-
-function updateView(){
-    $("#car-info").empty();
-
-    cars.forEach(function(car){
-        $("#car-info").append("<p> Car " + car.id + ", lane: " + car.lane + " is at <" + Math.floor(car.y) + "> traveling with the speed of " + Math.round(car.speed*10)/10 + ". Frustration: " + car.frustration + ". Colliding: " + car.collided + "</p>")
-        $("#car-info").append(" <p>Lane: " + car.lane + ", desiredLane: " + car.desiredLane + "</p>")
-
-    });
-}
 
 
 

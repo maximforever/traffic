@@ -17,8 +17,13 @@
 @media handheld, screen and (max-width: 550px) {
 
     #canvas {
-        height: 390px;
-        width: 200px;
+        height: 400px;
+        width: 176px;
+    }
+
+    #car-info{
+
+        display: block;
     }
 
 }
