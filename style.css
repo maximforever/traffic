@@ -1,3 +1,7 @@
+.container {
+    width: 60%;
+}
+
 #canvas {
     height:500px;
     width: 220px;
@@ -8,6 +12,7 @@
     display: inline-block;
     margin: 10px;
     vertical-align: top;
+    float: right;
 }
 
 #car-info h2{
@@ -16,13 +21,19 @@
 
 @media handheld, screen and (max-width: 550px) {
 
+    .container {
+        width: 100%;
+        text-align: center;
+    }
+
+
     #canvas {
         height: 400px;
         width: 176px;
     }
 
     #car-info{
-
+        float: none;
         display: block;
     }
 

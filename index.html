@@ -7,11 +7,18 @@
     </HEAD>
 
     <BODY>
-        <canvas height="500" width ="220" id = "canvas"></canvas>
-
-        <div id = "car-info">    
-            <input id = "additional" type="checkbox" value = "additional" checked> Show additional info
+        <div class = "container">
+            <div id = "car-info">    
+                <input id = "additional" type="checkbox" value = "additional"> Show collision/merge info
+                <br>Animation speed: <input id = "speed" type="range" min="1" max="7" datalist="animation">
+                <datalist id="animation">
+                  <option value="1" label="Slow">
+                  <option value="7" label="Fast">
+                </datalist>
+            </div>
+            <canvas height="500" width ="220" id = "canvas"></canvas>
         </div>
+
         
 
 
